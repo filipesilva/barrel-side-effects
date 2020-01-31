@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
-  "version": 1, 
+  "version": 1,
   "newProjectRoot": "projects",
   "projects": {
     "barrel-side-effects": {
@@ -29,6 +29,10 @@
             "scripts": []
           },
           "configurations": {
+            "ve": {
+              "outputPath": "dist/barrel-side-effects-ve",
+              "tsConfig": "tsconfig.app.ve.json"
+            },
             "production": {
               "fileReplacements": [
                 {
