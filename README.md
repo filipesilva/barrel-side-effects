@@ -1,27 +1,72 @@
 # BarrelSideEffects
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 9.0.0-rc.12.
+This repository reproduces the problem in https://github.com/angular/angular-cli/issues/16799.
 
-## Development server
+```
+git clone https://github.com/filipesilva/barrel-side-effects
+npm install
+npm run repro
+```
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+## What's happening?
 
-## Code scaffolding
+This app contains the following files:
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+- `src/app/another/index.ts`
+```ts
+export * from './another.module';
+export * from './side-effects';
+```
 
-## Build
+- `src/app/another/another.module.ts`
+```ts
+import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+@NgModule({
+  declarations: [],
+  imports: [
+    CommonModule
+  ]
+})
+export class AnotherModule { }
+```
 
-## Running unit tests
+- `src/app/another/side-effects.ts`
+```ts
+import { DateTime } from 'luxon';
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+export const local = () => DateTime.local();
+export const map = new Map([['key', 'value']]);
+```
 
-## Running end-to-end tests
+- `src/app/app.module.ts`
+```ts
+import { BrowserModule } from '@angular/platform-browser';
+import { NgModule } from '@angular/core';
 
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
+import { AppComponent } from './app.component';
+import { AnotherModule } from './another/index';
 
-## Further help
+@NgModule({
+  declarations: [
+    AppComponent
+  ],
+  imports: [
+    BrowserModule,
+    AnotherModule,
+  ],
+  providers: [],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+```
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+These files are setup so that:
+- `src/app/app.module.ts` imports `AnotherModule` from `src/app/another/index.ts`
+- `src/app/another/index.ts` also exports `src/app/another/side-effects.ts`, a file that isn't used but loads a library (`Luxon`) and has a toplevel side effect (a `Map` instantiated with `['key', 'value']`).
+
+`npm run repro` will build the application first with Ivy, and then with View Engine (VE, the compiler before Ivy).
+
+The Ivy build will contain the contents of `src/app/another/side-effects.ts`, but the VE build will not.
+You can tell because the Ivy build is much larger. You can also open `dist/barrel-side-effects/main.js` and find `Luxon` referenced there, along with map (as `new Map([["key","value"]])`).
